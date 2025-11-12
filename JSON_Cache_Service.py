@@ -48,6 +48,7 @@ async def get_user_data(user_id: str):
     data = await app.state.redis.get(key)
     if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "User not found"})
+    data = json.loads(data)
     return {"user_id": user_id, "data": data}
 
 @app.post("/user", status_code=status.HTTP_201_CREATED)
