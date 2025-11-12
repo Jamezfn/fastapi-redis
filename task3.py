@@ -7,8 +7,15 @@ async def fetch_data(id, sleep_time):
 
 async def main():
     result = await asyncio.gather(fetch_data(1, 2), fetch_data(1, 2), fetch_data(1, 2))
+    tasks = []
+    async with asyncio.TaskGroup() as tg:
+        for i, j in enumerate([1, 2, 3], start=1):
+            task = tg.create_task(fetch_data(i, j))
+            tasks.append(task)
     
+    result = [task.result() for task in tasks]
+
     for res in result:
-        print(res)
+        print(f'Received result: {res}')
 
 asyncio.run(main())
