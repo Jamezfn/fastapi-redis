@@ -40,3 +40,16 @@ async def publish_event(event_data: EventIn):
     }
     event_id = await app.state.redis.xadd(STREAM_NAME, payload)
     return {"event_id": event_id, "status": "published"}
+
+@app.get("/events")
+async def get_events(count: int = 10):
+    events_raw = await app.state.redis.xrevrange(STREAM_NAME, max="+", min="-", count=count)
+    events = []
+    for event_id, fields in events_raw:
+        event = {
+            "event_id": event_id,
+            "event_type": fields.get("event_type"),
+            "payload": json.loads(fields.get("payload", "{}"))
+        }
+        events.append(event)  
+    return {"events": events}
