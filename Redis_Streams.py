@@ -1,13 +1,17 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import redis.asyncio as redis
+from redis.exceptions import ResponseError
 from contextlib import asynccontextmanager
 import logging
 import json
 from typing import Any, Dict
+import asyncio
 
 REDIS_URL = "redis://127.0.0.1:6379"
 STREAM_NAME = "event:stream"
+GROUP_NAME = "events_group"
+CONSUMER_NAME = "worker-1"
 
 class EventIn(BaseModel):
     event_type: str
@@ -53,3 +57,27 @@ async def get_events(count: int = 10):
         }
         events.append(event)  
     return {"events": events}
+
+@app.post("/events/group/create")
+async def create_consumer_group(mkstream: bool = False):
+    try:
+        await app.state.redis.xgroup_create(STREAM_NAME, GROUP_NAME, id="0", mkstream=mkstream)
+        return {"status": "consumer group created"}
+    except redis.ResponseError as e:
+        if "BUSYGROUP" in str(e):
+            return {"status": "consumer group already exists"}
+        else:
+            raise
+
+@app.delete("/events/{id}")
+async def clear_events(id: str):
+    event_with_id = await app.state.redis.xrange(STREAM_NAME, min=id, max=id, count=1)
+    if not event_with_id:
+        return {"status": "not found"}
+    deleted = await app.state.redis.xdel(STREAM_NAME, id)
+    return {"status": "cleared"}
+
+@app.delete("/events/clear")
+async def clear_all_events():
+    deleted = await app.state.redis.delete(STREAM_NAME)
+    return {"status": "all cleared", "deleted_count": deleted}
