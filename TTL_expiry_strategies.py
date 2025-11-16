@@ -28,7 +28,9 @@ app = FastAPI(lifespan=lifespan)
 async def cache_with_fixed_ttl(key: str, value, ttl: int = 30):
     return await app.state.redis.setex(key, ttl, value)
 
-# async
+async def write_user(user: User, ttl: int = 300):
+    cache_key = key("user", user.id)
+    await app.state.redis.setex(cache_key, ttl, user.model_dump_json())
 
 @app.get("/users/{user_id}")
 async def get_user(user_id: int):
@@ -51,3 +53,8 @@ async def get_user_sliding(user_id: int):
     user = User(id=user_id, name="John Doe", email="john.doe@example.com", country="USA")
     await cache_with_fixed_ttl(cache_key, user.model_dump_json())
     return {"source": "database", "user": user}
+
+@app.post("/users")
+async def create_or_update_user(u: User, ttl: int = 300):
+    saved = await write_user(u, ttl=ttl)
+    return {"status": "user saved", "user": u}
