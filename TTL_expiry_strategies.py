@@ -58,3 +58,11 @@ async def get_user_sliding(user_id: int):
 async def create_or_update_user(u: User, ttl: int = 300):
     saved = await write_user(u, ttl=ttl)
     return {"status": "user saved", "user": u}
+
+@app.post("/persist/{user_id}")
+async def persist_user(user_id: int):
+    cache_key = key("user", user_id)
+    result = await app.state.redis.persist(cache_key)
+    if result:
+        return {"status": "user cache persisted"}
+    return {"status": "user cache not found or already persistent"}
