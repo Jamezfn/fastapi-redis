@@ -25,8 +25,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-def cache_with_fixed_ttl(key: str, value, ttl: int = 30):
-    return app.state.redis.setex(key, ttl, value)
+async def cache_with_fixed_ttl(key: str, value, ttl: int = 30):
+    return await app.state.redis.setex(key, ttl, value)
+
+# async
 
 @app.get("/users/{user_id}")
 async def get_user(user_id: int):
@@ -34,6 +36,17 @@ async def get_user(user_id: int):
 
     cached_user = await app.state.redis.get(cache_key)
     if cached_user:
+        return {"source": "cache", "user": User.model_validate_json(cached_user)}
+    user = User(id=user_id, name="John Doe", email="john.doe@example.com", country="USA")
+    await cache_with_fixed_ttl(cache_key, user.model_dump_json())
+    return {"source": "database", "user": user}
+
+@app.get("/users/{user_id}/sliding")
+async def get_user_sliding(user_id: int):
+    cache_key = key("user", user_id)
+    cached_user = await app.state.redis.get(cache_key)
+    if cached_user:
+        await app.state.redis.expire(cache_key, 30)
         return {"source": "cache", "user": User.model_validate_json(cached_user)}
     user = User(id=user_id, name="John Doe", email="john.doe@example.com", country="USA")
     await cache_with_fixed_ttl(cache_key, user.model_dump_json())
