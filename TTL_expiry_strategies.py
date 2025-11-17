@@ -66,3 +66,11 @@ async def persist_user(user_id: int):
     if result:
         return {"status": "user cache persisted"}
     return {"status": "user cache not found or already persistent"}
+
+@app.post("/expire-at/{user_id}")
+async def expire_user_at(user_id: int, timestamp: int):
+    cache_key = key("user", user_id)
+    result = await app.state.redis.expireat(cache_key, timestamp)
+    if result:
+        return {"key": cache_key, "expire_at_unix": timestamp, "ok": bool(result)}
+    return {"status": "user cache not found or expiration time not set"}
