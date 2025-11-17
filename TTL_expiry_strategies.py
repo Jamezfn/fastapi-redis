@@ -74,3 +74,4 @@ async def expire_user_at(user_id: int, timestamp: int):
     if result:
         return {"key": cache_key, "expire_at_unix": timestamp, "ok": bool(result)}
     return {"status": "user cache not found or expiration time not set"}
+
